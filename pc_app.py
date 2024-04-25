@@ -21,14 +21,14 @@ def x_update_root(x, w, b, idx, dt):
     return w[idx]*x[idx+1] + b[idx] + w[idx-1]*(x[idx-1] - w[idx-1]*x[idx] - b[idx-1])
 
 def w_update_pc(x, w, b, idx, dtw, decay, bound):
-    update =  w[idx] + dtw * ((x[idx] - x[idx+1]*w[idx] - b[idx]) * x[idx+1] - decay*w[idx])
+    update =  w[idx] + dtw * (((x[idx] - x[idx+1]*w[idx] - b[idx]) * x[idx+1] - decay*w[idx])).mean()
     if bound is None:
         return update
     else:
         return max(-np.abs(bound), min(np.abs(bound), update))
 
 def b_update_pc(x, w, b, idx, dtw, decay, bound):
-    update = b[idx] + dtw * (x[idx] - x[idx+1]*w[idx] - b[idx] - decay*b[idx])
+    update = b[idx] + dtw * ((x[idx] - x[idx+1]*w[idx] - b[idx] - decay*b[idx])).mean()
     if bound is None:
         return update
     else:
@@ -48,13 +48,13 @@ def generate_spring(x1, x2, y1, num_coils=10):
     return spring_x, spring_y
 
 def measure_error(x_data, w, b):
-    return round(sum([(x_data[i] - x_data[i+1]*w[i] - b[i])**2 for i in range(len(w))]), 2)
+    return sum([((x_data[i] - x_data[i+1]*w[i] - b[i])**2).mean() for i in range(len(w))]).round(2)
 
 
 class SimulationApp:
     def __init__(self, master):
         self.master = master
-        self.master.title("Predictive coidng simulator")
+        self.master.title("Predictive coding simulator")
 
         # Creating frames for layout
         self.frame_controls = ttk.Frame(self.master)
@@ -64,12 +64,15 @@ class SimulationApp:
         self.frame_animation.pack(side="left", fill="both", expand=True)
 
         # Parameters and variables initialization
+        self.numlayers = 4
+        
         self.num_time_steps = 5
         self.dt = 0.1
         self.dtw = 5.0
-        self.x_data = [-0.2, np.random.randn(), np.random.randn(), 0.1]
-        self.w = [np.random.rand()+ 0.5 for i in range(len(self.x_data)-1)]
-        self.b = [0. for i in range(len(self.x_data)-1)]
+        self.batch_size = 50
+        self.x_data = [None for i in range(self.numlayers)]
+        self.w = [None for i in range(self.numlayers-1)]
+        self.b = [None for i in range(self.numlayers-1)]
 
         self.p_decay = 0
         self.p_bound = None
@@ -77,24 +80,19 @@ class SimulationApp:
         self.layer_update = x_update_pc
 
         self.x_update = [
-            lambda x, w, b, idx, dt: x[idx],
-            lambda x, w, b, idx, dt: self.layer_update(x, w, b, idx, dt),
-            lambda x, w, b, idx, dt: self.layer_update(x, w, b, idx, dt),
-            lambda x, w, b, idx, dt: x[idx]
+            lambda x, w, b, idx, dt: self.layer_update(x, w, b, idx, dt) for i in range(self.numlayers)
         ]
+        self.x_update[0] = lambda x, w, b, idx, dt: x[idx]
+        self.x_update[-1] = lambda x, w, b, idx, dt: x[idx]
 
         self.weight_update = w_update_pc
         self.w_update = [
-            lambda x, w, b, idx, dtw, decay, bound: self.weight_update(x, w, b, idx, dtw, decay, bound),
-            lambda x, w, b, idx, dtw, decay, bound: self.weight_update(x, w, b, idx, dtw, decay, bound),
-            lambda x, w, b, idx, dtw, decay, bound: self.weight_update(x, w, b, idx, dtw, decay, bound)
+            lambda x, w, b, idx, dtw, decay, bound: self.weight_update(x, w, b, idx, dtw, decay, bound) for i in range(self.numlayers-1)
         ]
 
         self.bias_update = b_update_pc
         self.b_update = [
-            lambda x, w, b, idx, dtw, decay, bound: self.bias_update(x, w, b, idx, dtw, decay, bound),
-            lambda x, w, b, idx, dtw, decay, bound: self.bias_update(x, w, b, idx, dtw, decay, bound),
-            lambda x, w, b, idx, dtw, decay, bound: self.bias_update(x, w, b, idx, dtw, decay, bound)
+            lambda x, w, b, idx, dtw, decay, bound: self.bias_update(x, w, b, idx, dtw, decay, bound) for i in range(self.numlayers-1)
         ]
 
         # assess imputs from user
@@ -131,15 +129,21 @@ class SimulationApp:
         # Controls for the parameters
         self.option_label = ttk.Label(self.frame_controls, text="Neuron dynamics")
         self.option_label.pack()
-        self.option_combobox = ttk.Combobox(self.frame_controls, values=["pc", "mcpc", "post", "root"])
+        self.option_combobox = ttk.Combobox(self.frame_controls, values=["pc", "mcpc", "mcpc+pc", "post", "root"])
         self.option_combobox.pack()
         self.option_combobox.current(0)  # Default to the first option "pc"
 
-        self.input_label = ttk.Label(self.frame_controls, text="Input")
+        self.input_label = ttk.Label(self.frame_controls, text="Input mean")
         self.input_label.pack()
         self.input_entry = ttk.Entry(self.frame_controls)
         self.input_entry.pack()
-        self.input_entry.insert(0, "0.2")
+        self.input_entry.insert(0, "0.0")
+
+        self.input_std_label = ttk.Label(self.frame_controls, text="Input std")
+        self.input_std_label.pack()
+        self.input_std_entry = ttk.Entry(self.frame_controls)
+        self.input_std_entry.pack()
+        self.input_std_entry.insert(0, "0.0")
 
         self.latent_label = ttk.Label(self.frame_controls, text="Latent")
         self.latent_label.pack()
@@ -177,6 +181,13 @@ class SimulationApp:
         self.p_b_entry.pack()
         self.p_b_entry.insert(0, "None")  # Default value for dtw
 
+        self.bs_label = ttk.Label(self.frame_controls, text="batch size")
+        self.bs_label.pack()
+        self.bs_entry = ttk.Entry(self.frame_controls)
+        self.bs_entry.pack()
+        self.bs_entry.insert(0, "1")  # Default value for dtw
+
+
         self.start_button = ttk.Button(self.frame_controls, text="Start Simulation", command=self.start_simulation)
         self.start_button.pack()
         self.stop_button = ttk.Button(self.frame_controls, text="Stop Simulation", command=self.stop_simulation)
@@ -204,6 +215,10 @@ class SimulationApp:
             assert float(val) > 0
             self.p_bound = float(val)
 
+    def update_batch_size(self, val):
+        assert int(val)>0
+        self.batch_size = int(val)
+
     def update_num_time_steps(self, val):
         assert int(val) > 0
         self.num_time_steps = int(val)
@@ -218,19 +233,24 @@ class SimulationApp:
             self.layer_update = x_update_post
         elif val == "root":
             self.layer_update = x_update_root
+        elif val =="mcpc+pc":
+            self.x_update[-2] = lambda x, w, b, idx, dt: x_update_mcpc(x, w, b, idx, dt)
+            for i in range(1, len(self.x_update)-2):
+                self.x_update[i] = lambda x, w, b, idx, dt: x_update_pc(x, w, b, idx, dt)
         else:
             raise ValueError(f"Invalid option: {val}")
 
-    def update_input(self, val):
-        self.x_data[0] = float(val)
+    def update_input(self, mean, std):
+        assert float(std)>=0
+        self.x_data[0] = np.random.randn(self.batch_size)*float(std) + float(mean)
 
     def update_latent(self, val):
-        self.x_data[-1] = float(val)
+        self.x_data[-1] = np.array([float(val)])
 
     def sample_hidden(self):
-        self.x_data[1] = np.random.randn()*4
-        self.x_data[2] = np.random.randn()*4
-
+        for idx in range(1, len(self.x_data)-1):
+            self.x_data[idx] = np.random.randn(self.batch_size)
+    
     def sample_weights(self):
         for idx in range(len(self.w)):
             self.w[idx] = 1.0 # np.random.rand() + 0.5
@@ -241,26 +261,22 @@ class SimulationApp:
 
     def start_simulation(self):
         try:
-            self.update_dt(self.dt_entry.get())  # Update dt from the entry widget
-            self.update_dtw(self.dtw_entry.get())  # Update dtw from the entry widget
-            self.update_num_time_steps(self.num_steps_entry.get())  # Update num_time_steps from the entry widget
-            self.update_option(self.option_combobox.get())  # Update the selected option
-            self.update_input(self.input_entry.get())  # Update the input value
-            self.update_latent(self.latent_entry.get())  # Update the latent value
+            self.update_dt(self.dt_entry.get())  
+            self.update_dtw(self.dtw_entry.get()) 
+            
+            self.update_num_time_steps(self.num_steps_entry.get())
+            self.update_option(self.option_combobox.get())
             self.update_p_decay(self.p_d_entry.get())
             self.update_p_bound(self.p_b_entry.get())
+            self.update_batch_size(self.bs_entry.get())
+            
+            self.update_input(self.input_entry.get(), self.input_std_entry.get())
+            self.update_latent(self.latent_entry.get())
             self.sample_hidden()
             self.sample_weights()
             self.sample_bias()
         except ValueError:
             return    
-
-        print(f"Selected option: {self.selected_option}")  # Display or use this value in your simulation logic
-        print(f"dt: {self.dt}")
-        print(f"dtw: {self.dtw}")
-        print(f"decay: {self.p_decay}")
-        print(f"bound: {self.p_bound}")
-        print(f"Number of time steps: {self.num_time_steps}")
 
         self.ani = FuncAnimation(self.fig, self.update, frames=self.num_time_steps, init_func=self.init, blit=True)
 
@@ -269,6 +285,7 @@ class SimulationApp:
             self.ani.event_source.stop()
 
     def init(self):
+
         for point in self.points:
             point.set_data([], [])
         for line in self.lines:
@@ -283,11 +300,11 @@ class SimulationApp:
         for i in range(len(self.x_data)):
             self.x_data[i] = self.x_update[i](self.x_data, self.w, self.b, i, self.dt)
         for idx, point in enumerate(self.points):
-            point.set_data(self.x_data[idx], self.y_positions[idx])
+            point.set_data(self.x_data[idx][0], self.y_positions[idx])
         for idx, line in enumerate(self.lines):
-            line.set_data([self.x_data[idx+1], self.x_data[idx+1]*self.w[idx] + self.b[idx]], [self.y_positions[idx+1], self.y_positions[idx]])
+            line.set_data([self.x_data[idx+1][0], self.x_data[idx+1][0]*self.w[idx] + self.b[idx]], [self.y_positions[idx+1], self.y_positions[idx]])
         for idx, spring in enumerate(self.springs):
-            spring_x, spring_y = generate_spring(self.x_data[idx+1]*self.w[idx] + self.b[idx], self.x_data[idx], self.y_positions[idx])
+            spring_x, spring_y = generate_spring(self.x_data[idx+1][0]*self.w[idx] + self.b[idx], self.x_data[idx][0], self.y_positions[idx])
             spring.set_data(spring_x, spring_y)
         self.train_number_text.set_text(f'n = {frame}')
         self.energy_text.set_text(f'E = {measure_error(self.x_data, self.w, self.b)}')
@@ -297,8 +314,6 @@ class SimulationApp:
             for idx in range(len(self.w)):
                 self.w[idx] = self.w_update[idx](self.x_data, self.w, self.b, idx, self.dtw, self.p_decay, self.p_bound)
                 self.b[idx] = self.b_update[idx](self.x_data, self.w, self.b, idx, self.dtw, self.p_decay, self.p_bound)
-            print(self.w)
-            print(self.b)
             self.sample_hidden()
         return self.points + self.lines + self.springs + [self.train_number_text, self.energy_text]
 

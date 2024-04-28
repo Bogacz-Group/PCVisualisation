@@ -27,8 +27,8 @@ Inference dynamics modes
 -   standard predictive coding inference
 -   Monte Carlo predictive coding inference
 -   mixed mcpc (in layer L-1) and pc inference
--   "posterior" inference is a fast iterative inference mode where the activity of a neuron is updated to the activity with (locally) minimal energy. The is written as $x_{l, t+1} = (w_l x_{l-1} + b_l + w_{l-1}(x_{l-1} - b_{l-1}))/(w_{l-1}^2 + 1)$. This inference scheme is an faster alternative to pc inference which requires computing the inverse of weights.
--   "root" inference is another fast alternative to pc which does not require taking the inverse of weights and is only stable for weights smaller than 1. This inference scheme is written as $x_{l, t+1} = w_l x_{l-1} + b_l + w_{l-1} (x_{l-1} - w_{l-1} x_{l} - b_{l-1})$
+-   "posterior" inference is a fast iterative inference mode where the activity of a neuron is updated to the activity with (locally) minimal energy. The activity update is given by $x_{l, t+1} = (w_l x_{l-1} + b_l + w_{l-1}(x_{l-1} - b_{l-1}))/(w_{l-1}^2 + 1)$. This inference scheme is an faster alternative to pc inference however, it requires computing the inverse of weights.
+-   "root" inference is another fast alternative to pc which does not require taking the inverse of weights. However, it is only stable for weights smaller than 1. This inference scheme is written as $x_{l, t+1} = w_l x_{l-1} + b_l + w_{l-1} (x_{l-1} - w_{l-1} x_{l} - b_{l-1})$ and is a [fixed point iteration method to find the point of minimal energy](https://en.wikipedia.org/wiki/Root-finding_algorithms#:~:text=fixed%20point%20iteration%20method).
 
 Weight and bias dynamics
 -   weights and biases are update after a fixed number of inference steps following pc updates (=mcpc updates)

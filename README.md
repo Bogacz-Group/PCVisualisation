@@ -3,19 +3,19 @@
 [![UI Screenshot](src/ui.png)](src/ui.png)
 
 ## Description
-This repository visualizes inference and learning in predictive coding networks. The objective is to play around with the visualisation to get an intuition of how PCN perform inference and learns. This code can visualise deep linear PCNs with an arbitrary number of layers (needs to be set in code) and one neuron per layer. The visualised PCN contain 
+This repository visualizes inference and learning in predictive coding networks. The objective is to play around with the visualisation to get an intuition of how PCN perform inference and learn. This code can visualise deep linear PCNs with an arbitrary number of layers and one neuron per layer. The visualised PCN contains 
 
-The input layer 
+An input layer 
 -   is shown at the bottom of the visualisation
 -   mean and std of Gaussian inputs can be set
 
-The latent layer 
+A latent layer 
 -   is shown at the top of the visualisation
 -   has a constant activity
 
-The hidden layers
--   change during inference 
--   are randomly initialised before the first inference step
+Hidden layers
+-   its activity change during inference 
+-   are randomly initialised before the first inference step ($n=0$)
 
 Neural activity, weights and biases:
 -   the activity of layer is shown using a dot
@@ -27,8 +27,8 @@ Inference dynamics modes
 -   standard predictive coding inference
 -   Monte Carlo predictive coding inference
 -   mixed mcpc (in layer L-1) and pc inference
--   "posterior" inference is a fast iterative inference mode where the activity of a neuron is updated to the activity with (locally) minimal energy. The is written as $x_{l, t+1} = (w_l x_{l-1} + b_l + w_{l-1}(x_{l-1} - b_{l-1}))/(w_{l-1}^2 + 1)$. This inference scheme is an faster alternative to pc inference which requires computing the inverse of weight.
--   "root" inference is another alternative fast alternative to pc which does not require taking the inverse of weight and is only stable for weights smaller than 1. This inference scheme is written as $x_{l, t+1} = w_l x_{l-1} + b_l_ + w_{l-1} (x_{l-1} - w_{l-1} x_{l} - b_{l-1})$
+-   "posterior" inference is a fast iterative inference mode where the activity of a neuron is updated to the activity with (locally) minimal energy. The is written as $x_{l, t+1} = (w_l x_{l-1} + b_l + w_{l-1}(x_{l-1} - b_{l-1}))/(w_{l-1}^2 + 1)$. This inference scheme is an faster alternative to pc inference which requires computing the inverse of weights.
+-   "root" inference is another fast alternative to pc which does not require taking the inverse of weights and is only stable for weights smaller than 1. This inference scheme is written as $x_{l, t+1} = w_l x_{l-1} + b_l + w_{l-1} (x_{l-1} - w_{l-1} x_{l} - b_{l-1})$
 
 Weight and bias dynamics
 -   weights and biases are update after a fixed number of inference steps following pc updates (=mcpc updates)

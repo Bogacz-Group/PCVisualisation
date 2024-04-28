@@ -1,4 +1,4 @@
-# Visualising a predictive coding network
+# Visualising predictive coding networks
 
 [![UI Screenshot](src/ui.png)](src/ui.png)
 

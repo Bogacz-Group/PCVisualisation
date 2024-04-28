@@ -3,29 +3,49 @@
 [![UI Screenshot](src/ui.png)](src/ui.png)
 
 ## Description
+This repository visualizes inference and learning in predictive coding networks. The objective is to play around with the visualisation to get an intuition of how PCN perform inference and learns. This code can visualise deep linear PCNs with an arbitrary number of layers (needs to be set in code) and one neuron per layer. The visualised PCN contain 
 
-This repository visualizes inference and learning in predictive coding networks. The objective is to play around with the visualisation to get an intuition of how PCN perform inference and learns.
+The input layer 
+-   is shown at the bottom of the visualisation
+-   mean and std of Gaussian inputs can be set
 
-## Features
+The latent layer 
+-   is shown at the top of the visualisation
+-   has a constant activity
 
-- Visualising PC and MCPC inference as well as other (faster) equivalent inference schemes.
-- Allow for weight decay and weight clipping.
-- Learning on batches of data as well as single data points.
+The hidden layers
+-   change during inference 
+-   are randomly initialised before the first inference step
+
+Neural activity, weights and biases:
+-   the activity of layer is shown using a dot
+-   weights and biases generate top-down prediction
+-   the top-down predictions are shown using rods
+-   springs show the top-down prediction errors in each layer
+
+Inference dynamics modes
+-   standard predictive coding inference
+-   Monte Carlo predictive coding inference
+-   mixed mcpc (in layer L-1) and pc inference
+-   "posterior" inference is a fast iterative inference mode where the activity of a neuron is updated to the activity with (locally) minimal energy. The is written as $x_{l, t+1} = (w_l x_{l-1} + b_l + w_{l-1}(x_{l-1} - b_{l-1}))/(w_{l-1}^2 + 1)$. This inference scheme is an faster alternative to pc inference which requires computing the inverse of weight.
+-   "root" inference is another alternative fast alternative to pc which does not require taking the inverse of weight and is only stable for weights smaller than 1. This inference scheme is written as $x_{l, t+1} = w_l x_{l-1} + b_l_ + w_{l-1} (x_{l-1} - w_{l-1} x_{l} - b_{l-1})$
+
+Weight and bias dynamics
+-   weights and biases are update after a fixed number of inference steps following pc updates (=mcpc updates)
+-   parameters can also have decay and be bounded
+
 
 ## Installation
-
-1. Clone the repository: `git clone https://github.com/your-username/your-repo.git`
+The visualisation is writen in python using numy and matplotlib. It can be downloaded using:
+1. Clone the repository: `git clone https://github.com/Bogacz-Group/PCVisualisation.git`
 2. Install the dependencies: `pip install install -r requirements.txt`
 
 ## Usage
-
 Run `python pc_app.py` and give the UI a shot.
 
 ## Contributing
-
 Contributions are welcome!.  Dont hesitate to modify, add, etc. to the repository by creating a branch and creating a pull request when you are happy with your changes. 
 
 
 ## Contact
-
 For any questions or feedback, please contact [gaspard.oliviers@pmb.ox.ac.uk](mailto:gaspard.oliviers@pmb.ox.ac.uk).
